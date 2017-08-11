@@ -5,4 +5,7 @@ The Raduino Multi project was born as an extension of the Raduino v.1.20.1 base 
 
 Best 73 de IK8YFW. Giuseppe.
 
+11.08.2017 - Initial commit.
+             
+
 
