@@ -1,3 +1,7 @@
+
+/*******  IK8YFW - GIUSEPPE CALLIPO - Raduino Multiband v.1.20.1M *******/
+/* The firmware is based on original version Raduino_v1.20.1 for 
+   BITX40 by Allard Munters PE1NWL (pe1nwl@gooddx.net) */
 /**
    Raduino_v1.20.1 for BITX40 - Allard Munters PE1NWL (pe1nwl@gooddx.net)
 
@@ -45,7 +49,7 @@
 
 /* IK8YFW - 11.08.2017 - Multiband extension. define it for multi band operations */
 
-/* search MULTI_BAND definition to find the changes on original version 1.20.1 */
+/* PS. search MULTI_BAND definition to find the changes on original version 1.20.1 */
 /* 11.08.2017 - Added definition blocks to mark changes on last official verion.
  *              Added band change Function to rotate to band (it set band and mode)
  *              the band change operate instead of RIT ( inactivate at the moment ).
