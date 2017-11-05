@@ -1,10 +1,10 @@
 
-/*******  IK8YFW - GIUSEPPE CALLIPO - Raduino Multiband v.1.20.1M *******/
-/* The firmware is based on original version Raduino_v1.20.1 for 
-   BITX40 by Allard Munters PE1NWL (pe1nwl@gooddx.net) */
-/**
-   Raduino_v1.20.1 for BITX40 - Allard Munters PE1NWL (pe1nwl@gooddx.net)
+/*******  IK8YFW - GIUSEPPE CALLIPO - Raduino Multiband v.1.0.1 *******/
 
+/** The firmware is based on original version Raduino_v1.20.1 for 
+    BITX40 by Allard Munters PE1NWL (pe1nwl@gooddx.net) */
+/**
+  
    This source file is under General Public License version 3.
 
    Most source code are meant to be understood by the compilers and the computers.
@@ -54,8 +54,21 @@
  *              Added band change Function to rotate to band (it set band and mode)
  *              the band change operate instead of RIT ( inactivate at the moment ).
  *              Mark the version as. 1.20.1M
+ * 24.08.2017 - Insert smeter routine adapt.
+ *              ReMark the version as. 1.0.0
+ *              
+ * 28.08.2017 - Final update smeter routine 
+ *              adapted routine by PA3FAT 
+ *              Mark minor version as. 1.0.1              
+ *              
  */
-#define MULTI_BAND
+
+/*********************************************************************/
+/********************  IMPORTANT  ************************************/
+/* To enable MULTIBAND and SMETER option make defined these symbols  */
+ 
+#define MULTI_BAND_SM   // Enable Smeter routines
+#define MULTI_BAND      // Enable Multiband routines
 
 #ifdef MULTI_BAND
   #define BAND_80   (3650000UL)  
@@ -151,6 +164,11 @@ LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
    A7 (analog input) is connected to a center pin of good quality 100K or 10K linear potentiometer with the two other ends connected to
        ground and +5v lines available on the connector. This implements the tuning mechanism.
 */
+
+/**************************************************************
+   IMPORTANT: what is the pin used for Smeter option ?
+   The SMETER FUNCTION use the SMETER_PIN  as (A6)  Analog input
+**************************************************************/
 
 #define PTT_SENSE (A0)
 #define KEY (A1)
@@ -304,6 +322,37 @@ int fine = 0; // fine tune offset (Hz)
 #define RUN_FINETUNING (8) // fine tuning mode
 
 byte RUNmode = RUN_NORMAL;
+
+
+/****  MULTIBAND DEFINITIONS ****/
+#ifdef MULTI_BAND_SM
+
+
+/** defining the chars for the S-meter function **/
+byte meter_s1[8] =  {B00000,B00000,B00000,B00000,B00000,B00000,B00000,B11000};
+byte meter_s2[8] =  {B00000,B00000,B00000,B00000,B00000,B00000,B00000,B11011};
+byte meter_s3[8] =  {B00000,B00000,B00000,B00000,B00000,B00000,B11000,B11000};
+byte meter_s4[8] =  {B00000,B00000,B00000,B00000,B00000,B00000,B11011,B11011};
+byte meter_s5[8] =  {B00000,B00000,B00000,B00000,B00000,B11000,B11000,B11000};
+byte meter_s6[8] =  {B00000,B00000,B00000,B00000,B00000,B11011,B11011,B11011};
+byte meter_s7[8] =  {B00000,B00000,B00000,B00000,B11000,B11000,B11000,B11000};
+byte meter_s8[8] =  {B00000,B00000,B00000,B11011,B11011,B11011,B11011,B11011};
+byte meter_s9[8] =  {B11000,B00000,B11000,B11000,B11000,B11000,B11000,B11000};
+byte meter_s10[8] = {B11011,B00000,B11011,B11011,B11011,B11011,B11011,B11011};
+byte meter_s20[8] = {B11000,B00000,B11000,B11000,B11000,B11000,B11000,B11000};
+byte meter_s30[8] = {B11011,B00000,B11011,B11011,B11011,B11011,B11011,B11011};
+
+// sampling interval for the AGC, 33 milli averaged every 10 reads: gives 3
+// updates per second and a good visual effect
+#define SM_SAMPLING_INTERVAL  33
+#define SM_SAMPLE_CNT 15
+byte    pep[SM_SAMPLE_CNT];    // s-meter readings storage
+long lastMilis = 0;            // to track the last sampled time
+
+#define SMETER_PIN      (A6)    // Analog input
+
+#endif
+
 
 // *************  SI5315 routines - tks Jerry Gaffke, KE7ER   ***********************
 
@@ -1922,6 +1971,138 @@ void scan() {
   }
 }
 
+
+
+#ifdef MULTI_BAND_SM
+/**
+     S-meter/TX-meter functions
+*/
+
+
+/****************************************/
+/* MySMeter bar alike display           */
+/****************************************/
+void mySMeter ( int level, char label ){
+   static byte lastpos=0;
+   byte i;
+
+   // Write the S meter indicator 2n line first column
+   lcd.setCursor(0,1);
+   lcd.write( label );
+   
+   // Note the need to stick to createChar# per bar type written. 
+   // You can't use single char creation e.g. 0 or 1 etc as it will show directly on already written chars elsewhere.
+   // Resulting in strange looking s-meter graph.
+   
+   switch( level ){
+     case 13: lcd.createChar(6, meter_s30); lastpos=7; lcd.setCursor(lastpos,1); lcd.write( 6 ); break;
+     case 12: lcd.createChar(6, meter_s30); lastpos=6; lcd.setCursor(lastpos,1); lcd.write( 6 ); break; // lcd.write(" "); break;
+     case 11: lcd.createChar(6, meter_s20); lastpos=6; lcd.setCursor(lastpos,1); lcd.write( 6 ); break; // lcd.write(" "); break;
+     case 10: lcd.createChar(5, meter_s10); lastpos=5; lcd.setCursor(lastpos,1); lcd.write( 5 ); break; // lcd.write("  "); break;
+     case 9:  lcd.createChar(5, meter_s9); lastpos=5; lcd.setCursor(lastpos,1); lcd.write( 5 );  break; // lcd.write("  "); break;
+     case 8:  lcd.createChar(4, meter_s8); lastpos=4; lcd.setCursor(lastpos,1); lcd.write( 4 );  break; // lcd.write("   "); break;
+     case 7:  lcd.createChar(4, meter_s7); lastpos=4; lcd.setCursor(lastpos,1); lcd.write( 4 );  break; // lcd.write("   "); break;
+     case 6:  lcd.createChar(3, meter_s6); lastpos=3; lcd.setCursor(lastpos,1); lcd.write( 3 );  break; // lcd.write("    ");break;
+     case 5:  lcd.createChar(3, meter_s5); lastpos=3; lcd.setCursor(lastpos,1); lcd.write( 3 );  break; // lcd.print("    "); break;
+     case 4:  lcd.createChar(2, meter_s4); lastpos=2; lcd.setCursor(lastpos,1); lcd.write( 2 );  break; // lcd.write("     "); break;
+     case 3:  lcd.createChar(2, meter_s3); lastpos=2; lcd.setCursor(lastpos,1); lcd.write( 2 );  break; // lcd.write("     "); break;
+     case 2:  lcd.createChar(1, meter_s2); lastpos=1; lcd.setCursor(lastpos,1); lcd.write( 1 );  break; // lcd.write("     "); break;
+     case 1:  lcd.createChar(1, meter_s1); lastpos=1; lcd.setCursor(lastpos,1); lcd.write( 1 );  break; // lcd.write("      "); break;
+     case 0:                               lastpos=1; lcd.setCursor(lastpos,1); break; //lcd.write("       "); break;
+     default: break;
+   }
+   // Clear the remaining bars
+   for (i=lastpos;i<7;i++)
+   {
+     lcd.setCursor(i+1,1); lcd.write(' ');
+   }
+}
+
+
+// show the bar graph for the RX or TX modes
+void showBarGraph() {
+    static byte old_ave = 0;
+    byte ave = 0, i;
+    
+    // find the average
+    for (i=0; i<SM_SAMPLE_CNT; i++) {
+        ave += pep[i];
+    }
+    ave /= SM_SAMPLE_CNT;
+    
+    // print the bars
+    // Serial.print("Value averaged: ");Serial.println(ave);
+   // if (old_ave != ave)
+    {
+      //clear  
+      memset(c, 0, sizeof(c));
+      printLine2(c);
+      //print
+      mySMeter(ave,'S');
+      old_ave = ave;
+    }
+}
+
+
+// smeter reading, this take a sample of the smeter/txpower each time; an will
+// rise a flag when they have rotated the array of measurements 2/3 times to
+// have a moving average
+void smeter() {
+    // contador para el ciclo de lecturas en el array
+    static byte smeterCount = 0; // Count the measurements done 
+    word val = 0;                // Input value read from the input pin
+
+    // sample and process the S-meter in RX & TX
+    // Serial.print("milliseconds passed :"); Serial.println(millis()-lastMilis);
+    if ((millis() - lastMilis) >= SM_SAMPLING_INTERVAL) {
+      lastMilis = millis();
+      // it has rotated already?
+      if (smeterCount < SM_SAMPLE_CNT) {
+         // take a measure and rotate the array
+
+         // we are sensing a value that must move in the 0-1.1v so internal reference
+         analogReference(INTERNAL);
+         // read the value and map it for 13 chars (0-12) in the LCD bar
+        // if (tx) {
+            // At the moment no TX meter available !
+            // we are on TX, sensing via A1
+            // val = analogRead(A1);
+        // } else {
+            // we are in RX, sensing via A0
+            val = analogRead(SMETER_PIN);
+        // }
+         // reset the reference for the buttons handling
+         analogReference(DEFAULT);
+
+         // watchout !!! map can out peaks, so smooth
+         if (val > 1023) val = 1023;
+         // Serial.print("Value unmapped: ");Serial.println(val);
+
+         // scale it to 13 blocks (0-14)
+         val = map(val, 0, 1023, 0, 14);
+
+         // push it in the array
+         for (byte i = 0; i < SM_SAMPLE_CNT-1; i++) {
+             pep[i] = pep[i+1];
+            // Serial.print("Value pep array: ");Serial.println(pep[i]);
+         }
+         pep[SM_SAMPLE_CNT-1] = val;
+        // Serial.print("Value mapped: ");Serial.println(val);
+
+         // increment counter
+         smeterCount += 1;
+         
+      } else {
+        // rise the flag about the need to show the bar graph and reset the count
+        showBarGraph();
+        smeterCount = 0;
+      }
+    }
+}
+
+#endif
+
+
 /**
    setup is called on boot up
    It setups up the modes for various pins as inputs or outputs
@@ -1934,7 +2115,7 @@ void scan() {
 void setup() {
   raduino_version = 20;
   #ifdef MULTI_BAND
-    strcpy (c, "Raduino v1.20.1M"); //Multiband
+    strcpy (c, "RM v1.0.1"); //Multiband
   #else
     strcpy (c, "Raduino v1.20.1");
   #endif
@@ -2059,7 +2240,7 @@ void setup() {
 void loop() {
   switch (RUNmode) {
     case 0: // for backward compatibility: execute calibration when CAL button is pressed
-      if (!digitalRead(CAL_BUTTON)) {
+	  if (!digitalRead(CAL_BUTTON)) {
         RUNmode = RUN_CALIBRATE;
         calbutton = true;
         factory_settings();
@@ -2068,12 +2249,24 @@ void loop() {
         delay(2000);
       }
       else {
+
+#ifdef MULTI_BAND_SM
+  // smeter in rx mode
+  if (clicks == 0 && !ritOn && !inTx){ 
+      smeter();
+      showBarGraph();
+  }  
+#endif
+        
         if (!inTx) {
           checkButton();
           checkSPOT();
           save_frequency();
+
+#ifndef MULTI_BAND_SM          
           if (clicks == 0 && !ritOn)
             printLine2((char *)" ");
+#endif            
         }
         if (PTTsense_installed) {
           checkCW();
